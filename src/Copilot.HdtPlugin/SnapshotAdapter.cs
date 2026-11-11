@@ -32,13 +32,13 @@ namespace Copilot.HdtPlugin
                 HdtVersion = hdtVersion,
                 Timestamp = DateTime.UtcNow
             };
-            snap.Me = BuildSide(game, pe, snap.MyTurn, includeRaw: snap.Raw);
-            snap.Opp = BuildSide(game, oe, false, includeRaw: snap.Raw);
+            snap.Me = BuildSide(game, pe, snap.MyTurn, own: true, includeRaw: snap.Raw);
+            snap.Opp = BuildSide(game, oe, false, own: false, includeRaw: snap.Raw);
             snap.Opp.Secrets = game.OpponentSecretCount;
             return snap;
         }
 
-        private static SideState BuildSide(GameV2 game, Entity playerEntity, bool isActive, List<RawEntity> includeRaw)
+        private static SideState BuildSide(GameV2 game, Entity playerEntity, bool isActive, bool own, List<RawEntity> includeRaw)
         {
             int pid = playerEntity.GetTag(GameTag.PLAYER_ID);
             var side = new SideState
@@ -47,6 +47,26 @@ namespace Copilot.HdtPlugin
                        - playerEntity.GetTag(GameTag.RESOURCES_USED),
                 HandCount = game.Entities.Values.Count(e => e.IsInHand && e.IsControlledBy(pid))
             };
+
+            // Own hand only. The opponent's hand is hidden information and is never read.
+            if (own)
+                foreach (var e in game.Entities.Values.Where(x => x.IsInHand && x.IsControlledBy(pid)).OrderBy(x => x.ZonePosition))
+                {
+                    string htext = null;
+                    try { htext = e.Card?.Text; } catch { }
+                    side.Hand.Add(new HandCard
+                    {
+                        Id = e.Id,
+                        CardId = e.CardId,
+                        Name = e.Card?.Name ?? e.CardId,
+                        Cost = e.GetTag(GameTag.COST),
+                        Kind = e.IsMinion ? CardKind.Minion : e.IsSpell ? CardKind.Spell : CardKind.Other,
+                        Attack = e.GetTag(GameTag.ATK),
+                        Health = e.GetTag(GameTag.HEALTH),
+                        Text = htext
+                    });
+                    includeRaw.Add(Raw(e));
+                }
 
             if (game.Entities.TryGetValue(playerEntity.GetTag(GameTag.HERO_ENTITY), out var hero))
             {
@@ -66,14 +86,14 @@ namespace Copilot.HdtPlugin
                          .Where(x => x.IsInPlay && x.IsMinion && x.IsControlledBy(pid))
                          .OrderBy(x => x.ZonePosition))
             {
-                var m = BuildMinion(e, isActive);
+                var m = BuildMinion(e, isActive, own);
                 side.Board.Add(m);
                 includeRaw.Add(Raw(e));
             }
             return side;
         }
 
-        private static MinionState BuildMinion(Entity e, bool isActive)
+        private static MinionState BuildMinion(Entity e, bool isActive, bool own)
         {
             bool frozen = Flag(e, GameTag.FROZEN);
             bool cantAttack = Flag(e, GameTag.CANT_ATTACK);
@@ -87,7 +107,7 @@ namespace Copilot.HdtPlugin
 
             string text = null;
             try { text = e.Card?.Text; } catch { /* card db miss -> Unknown below */ }
-            var support = e.HasCardId ? TextSupport.Classify(text) : Support.Unknown;
+            var support = e.HasCardId ? TextSupport.Classify(text, own) : Support.Unknown;
             if (e.HasCardId && text == null) support = Support.Unknown;
 
             return new MinionState
@@ -105,7 +125,10 @@ namespace Copilot.HdtPlugin
                 AttacksRemaining = attacks,
                 CanAttackHero = !(rush && !charge && turnsInPlay == 0),
                 Support = support,
-                Text = text
+                Text = text,
+                Frozen = frozen,
+                MaxAttacks = cantAttack ? 0 : max,
+                DeathrattleArmor = TextSupport.DeathrattleArmor(text)
             };
         }
 

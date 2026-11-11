@@ -19,7 +19,7 @@ namespace Copilot.Engine
             {
                 case LethalStatus.Proven: sb.AppendLine("LETHAL: YES (verified)"); break;
                 case LethalStatus.Likely: sb.AppendLine("LETHAL: LIKELY"); break;
-                case LethalStatus.None: sb.Append("LETHAL: NO (attacks only)"); return sb.ToString();
+                case LethalStatus.None: sb.AppendLine("LETHAL: NO (modelled actions)"); AppendThreat(sb, s); return sb.ToString().TrimEnd();
                 default: sb.AppendLine("LETHAL: UNKNOWN"); break;
             }
 
@@ -27,8 +27,8 @@ namespace Copilot.Engine
             {
                 var names = Names(s);
                 int n = 1;
-                foreach (var step in CompactSteps(r.Actions))
-                    sb.AppendLine(n++ + ". " + Name(names, step.AttackerId) + " -> " + (step.TargetId == LethalSolver.Face ? "FACE" : Name(names, step.TargetId)));
+                foreach (var step in r.Actions)
+                    sb.AppendLine(n++ + ". " + Describe(step, names));
                 sb.AppendLine("Damage " + r.FaceDamage + " / " + r.RequiredDamage);
             }
             foreach (var reason in r.Reasons.Distinct())
@@ -36,12 +36,32 @@ namespace Copilot.Engine
             return sb.ToString().TrimEnd();
         }
 
-        private static IEnumerable<PlannedAttack> CompactSteps(List<PlannedAttack> actions) => actions;
+        private static void AppendThreat(StringBuilder sb, GameSnapshot s)
+        {
+            var t = ThreatAnalyzer.Analyze(s);
+            if (t.Danger)
+                sb.AppendLine("DANGER: enemy board shows " + t.VisibleDamage + " dmg, you have " + t.HeroEffectiveHealth + (t.HasOurTaunt ? " (your Taunt may block)" : ""));
+            else if (t.Watch)
+                sb.AppendLine("Watch: enemy board shows " + t.VisibleDamage + " dmg, you have " + t.HeroEffectiveHealth);
+        }
+
+        public static string Describe(PlannedAction a, Dictionary<int, string> names)
+        {
+            if (a.Kind == ActionKind.Play)
+            {
+                var text = "Play " + Name(names, a.CardEntityId);
+                if (a.Slot >= 0) text += " (slot " + (a.Slot + 1) + " from left)";
+                if (a.TargetId != LethalSolver.NoTarget) text += " on " + Name(names, a.TargetId);
+                return text;
+            }
+            return Name(names, a.AttackerId) + " -> " + (a.TargetId == LethalSolver.Face ? "FACE" : Name(names, a.TargetId));
+        }
 
         private static Dictionary<int, string> Names(GameSnapshot s)
         {
             var d = new Dictionary<int, string> { { LethalSolver.HeroAttacker, "Hero" } };
             foreach (var m in s.Me.Board.Concat(s.Opp.Board)) d[m.Id] = m.Name ?? m.CardId ?? ("#" + m.Id);
+            foreach (var h in s.Me.Hand) d[h.Id] = h.Name ?? h.CardId ?? ("#" + h.Id);
             return d;
         }
 

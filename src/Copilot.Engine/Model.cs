@@ -33,11 +33,31 @@ namespace Copilot.Engine.Model
         public int AttacksRemaining { get; set; }
         /// <summary>False for Rush minions that cannot hit the hero yet.</summary>
         public bool CanAttackHero { get; set; } = true;
+        public bool Frozen { get; set; }
+        /// <summary>Attacks per turn the minion could make (0 = cannot attack, 1, 2 Windfury, 4 Mega-Windfury). Defaults to 1.</summary>
+        public int MaxAttacks { get; set; } = 1;
+        /// <summary>Armor the owner gains when this minion dies (parsed from "Deathrattle: Gain N Armor").</summary>
+        public int DeathrattleArmor { get; set; }
         public Support Support { get; set; }
         /// <summary>Base card text (markup included), kept so reviews can see why a card was Unknown.</summary>
         public string Text { get; set; }
 
         public override string ToString() => (Name ?? CardId ?? "?") + "#" + Id;
+    }
+
+    public enum CardKind { Other = 0, Minion = 1, Spell = 2 }
+
+    public sealed class HandCard
+    {
+        public int Id { get; set; }
+        public string CardId { get; set; }
+        public string Name { get; set; }
+        /// <summary>Current Cost as HDT reports it (auras included).</summary>
+        public int Cost { get; set; }
+        public CardKind Kind { get; set; }
+        public int Attack { get; set; }
+        public int Health { get; set; }
+        public string Text { get; set; }
     }
 
     public sealed class SideState
@@ -54,6 +74,8 @@ namespace Copilot.Engine.Model
         /// <summary>Number of secrets in play. Their identity is unknown to the engine.</summary>
         public int Secrets { get; set; }
         public List<MinionState> Board { get; set; } = new List<MinionState>();
+        /// <summary>Own hand only (the opponent's hand is hidden information and is never read).</summary>
+        public List<HandCard> Hand { get; set; } = new List<HandCard>();
     }
 
     /// <summary>Raw entity record kept in dumps so adapter assumptions can be audited offline.</summary>
@@ -92,6 +114,7 @@ namespace Copilot.Engine.Model
         {
             sb.Append('|').Append(s.HeroHealth).Append(',').Append(s.Armor).Append(',').Append(s.HeroAttack)
               .Append(',').Append(s.HeroAttacksRemaining).Append(',').Append(s.Mana).Append(',').Append(s.Secrets);
+            foreach (var h in s.Hand) sb.Append('h').Append(h.Id).Append(':').Append(h.Cost);
             foreach (var m in s.Board)
                 sb.Append(';').Append(m.Id).Append(',').Append(m.Attack).Append(',').Append(m.Health)
                   .Append(m.Taunt ? 'T' : '-').Append(m.DivineShield ? 'D' : '-').Append(m.Poisonous ? 'P' : '-')

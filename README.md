@@ -29,3 +29,6 @@ If HDT updates and the folder name changes, pass `-p:HdtDir="...\app-X.Y.Z"` to 
 | `tools/DeckDump` | prints real card data for a deck code (via HearthDb) |
 | `fixtures/` | snapshot fixtures (`expected` field = required solver status) |
 | `docs/` | spec, research, decisions, progress, limitations |
+
+## What the panel shows
+`LETHAL: YES (verified)` / `LIKELY` / `NO (modelled actions)` / `UNKNOWN`, the ordered steps (card plays and attacks) and damage vs. required. On `NO` it adds a `DANGER`/`Watch` line when the visible enemy board threatens your health. See `docs/known-limitations.md` for exactly what is modelled.

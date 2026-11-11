@@ -23,5 +23,22 @@ namespace Copilot.Tests
         [InlineData("Your other minions have +1 Attack.", Support.Unknown)]
         [InlineData("<b>Taunt</b>. <b>Deathrattle:</b> Draw a card.", Support.Unknown)]
         public void Classify(string text, Support expected) => Assert.Equal(expected, TextSupport.Classify(text));
+
+        [Fact]
+        public void EnemyDeathrattleArmor_IsParsedAndSupported()
+        {
+            const string vanguard = "<b>Taunt</b> <b>Battlecry and Deathrattle:</b>&  Gain 3 Armor.";
+            Assert.Equal(Support.KeywordOnly, TextSupport.Classify(vanguard));
+            Assert.Equal(3, TextSupport.DeathrattleArmor(vanguard));
+            Assert.Equal(0, TextSupport.DeathrattleArmor("<b>Taunt</b>"));
+        }
+
+        [Fact]
+        public void OwnSummonDeathrattle_IsInert_ButEnemyOneIsNot()
+        {
+            const string egg = "[x]<b>Deathrattle:</b> Summon a {0}/{1} Whelp. <i>(Gains +1/+1   at the start of your turns!)  </i>";
+            Assert.Equal(Support.InertOnBoard, TextSupport.Classify(egg, ownSide: true));
+            Assert.Equal(Support.Unknown, TextSupport.Classify(egg, ownSide: false));
+        }
     }
 }

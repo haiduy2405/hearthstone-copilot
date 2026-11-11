@@ -1,9 +1,26 @@
-# Known limitations (v0.1)
+# Known limitations (v0.2)
 
-- Lethal solver models attacks only: minion and hero attacks, Taunt, Divine Shield, Poisonous, Windfury, Immune, Stealth, armor. **Not modelled:** spells, hero powers, battlecries, deathrattles, auras, Lifesteal, Reborn, Freeze effects, weapon durability, mana. Cards with such text are classified `Unknown` and cap the result at `Likely`.
-- Enemy secrets are never identified; any secret caps at `Likely`.
-- Attack readiness is derived from raw tags (`NUM_TURNS_IN_PLAY`, `NUM_ATTACKS_THIS_TURN`, `FROZEN`, `CANT_ATTACK`, Charge/Rush/Windfury). **Unverified against live games.**
-- Non-taunt enemy minions are never attacked (cannot improve face damage in the modelled rules).
-- `TextSupport` judges by the card's base text; effects granted by enchantments are only seen through the resulting tags (Attack, Taunt, ...).
-- Panel shows nothing outside Constructed/standard-style matches and cannot be moved or resized yet.
-- Windows-specific behaviour (plugin loading, panel click-through, HDT thread assumptions) is verified only by the steps recorded in `progress.md`.
+## Modelled
+Attacks (minion and hero), Taunt, Divine Shield, Poisonous, Windfury, Immune, Stealth, armor, enemy "Deathrattle: Gain N Armor", mana, 7-minion board limit, and these cards (see `CardRules.cs`, texts in `docs/deck-cards.md`):
+Blasphemy, Tachyon Barrage, Entropic Continuity, Floating Lessons, Vaultkeeper, Ruinous Velocidrake (Rush). Search plays the fewest cards that win.
+
+## Claim levels
+- `Proven`: every card involved is modelled and no rule is marked unverified.
+- `Likely`: a legal line exists but an enemy secret, an unmodelled card, or an **unverified rule** is involved. Unverified today: Tachyon Barrage (assumes the enemy hero is a valid target) and Floating Lessons (assumes +X/+X with X = 2 x current Cost).
+- `Inconclusive`: node budget (200k) or cancellation hit; never reported as "no lethal".
+
+## Deliberate conservative choices
+- Blasphemy is doubled only when strictly the highest Cost in hand (a tie is treated as a single cast).
+- Tachyon Barrage is played only when the enemy has no minion (random split otherwise).
+- Velocidrake needs own hero health > 3 (its Battlecry may cast a Shred of Time: 3 damage to us); its copy effect is ignored.
+- Zakajz is not played by the search: it only raises spell Cost and cannot help a lethal line.
+
+## Not modelled
+Discover/random effects (Cursed Catacombs), delayed Rituals, Kazakus choices, freeze effects, Lifesteal, Reborn, weapon durability, deck/draw effects, enemy hand and hero powers, our own Deathrattles other than summons, effects granted by enchantments (only their resulting tags are seen), Spell Damage bonuses (ignored = conservative).
+Non-Taunt enemy minions are never attacked (they cannot raise face damage in the modelled rules).
+
+## Unverified against live games
+- Attack readiness is derived from raw tags (`NUM_TURNS_IN_PLAY`, `NUM_ATTACKS_THIS_TURN`, `FROZEN`, `CANT_ATTACK`, Charge/Rush/Windfury).
+- Hand Cost is read from the `COST` tag; Mawman Cultist's aura should show up there.
+- Threat warning uses the visible board only (hidden hand, secrets, Charge minions and burn are not counted), so it can only under-estimate danger.
+- Panel appears only in constructed-style matches; it cannot be moved or resized yet.
