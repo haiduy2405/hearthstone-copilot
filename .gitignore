@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+out/
+artifacts/
+# personal data / secrets
+logs/
+snapshots/
+*.log
+.env
+secrets.*
+# local sync artifacts
+_sync*

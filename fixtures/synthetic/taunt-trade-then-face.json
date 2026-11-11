@@ -1,0 +1,21 @@
+{
+  "name": "Hand-written: clear Taunt with the 4/4, then 7-power goes face for exact lethal",
+  "expected": "Proven",
+  "snapshot": {
+    "MyTurn": true,
+    "Turn": 6,
+    "Me": {
+      "HeroHealth": 30,
+      "Board": [
+        { "Id": 10, "Name": "Four-Four", "Attack": 4, "Health": 4, "AttacksRemaining": 1, "CanAttackHero": true, "Support": 0 },
+        { "Id": 11, "Name": "Seven-Two", "Attack": 7, "Health": 2, "AttacksRemaining": 1, "CanAttackHero": true, "Support": 0 }
+      ]
+    },
+    "Opp": {
+      "HeroHealth": 7,
+      "Board": [
+        { "Id": 20, "Name": "Wall", "Attack": 1, "Health": 4, "Taunt": true, "Support": 1 }
+      ]
+    }
+  }
+}

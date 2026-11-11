@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>HearthstoneCopilot</AssemblyName>
+    <RootNamespace>Copilot.HdtPlugin</RootNamespace>
+    <Version>0.1.0</Version>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <!-- HDT assemblies are compile-time only. Private=false: HDT already loads them; shipping copies breaks the plugin. -->
+  <ItemGroup>
+    <Reference Include="HearthstoneDeckTracker"><HintPath>$(HdtDir)\HearthstoneDeckTracker.exe</HintPath><Private>false</Private></Reference>
+    <Reference Include="HearthDb"><HintPath>$(HdtDir)\HearthDb.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="HearthMirror"><HintPath>$(HdtDir)\HearthMirror.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(HdtDir)\Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="MahApps.Metro"><HintPath>$(HdtDir)\MahApps.Metro.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Copilot.Engine\Copilot.Engine.csproj" />
+  </ItemGroup>
+</Project>

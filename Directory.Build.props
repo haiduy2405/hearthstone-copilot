@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <!-- Folder of the installed HDT build we compile against. Override: dotnet build -p:HdtDir="C:\path" -->
+  <PropertyGroup Condition="'$(HdtDir)' == ''">
+    <HdtDir>$(LOCALAPPDATA)\HearthstoneDeckTracker\app-1.59.11</HdtDir>
+  </PropertyGroup>
+</Project>
