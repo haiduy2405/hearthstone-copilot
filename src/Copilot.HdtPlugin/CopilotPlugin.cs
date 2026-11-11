@@ -44,7 +44,7 @@ namespace Copilot.HdtPlugin
         public string Description => "Read-only tactical copilot: exact-lethal detection shown in a compact panel.";
         public string ButtonText => "Open data folder";
         public string Author => "Duy";
-        public Version Version => new Version(0, 1, 0);
+        public Version Version => new Version(0, 2, 0);
         public MenuItem MenuItem => _menu;
 
         public void OnLoad()

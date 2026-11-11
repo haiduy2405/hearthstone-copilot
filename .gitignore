@@ -13,3 +13,4 @@ snapshots/
 secrets.*
 # local sync artifacts
 _sync*
+dist/

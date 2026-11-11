@@ -23,8 +23,9 @@ Only entries with a command or observation behind them.
 - 2026-11-11 Second live game: panel showed `LETHAL: NO` and a 7-step `LETHAL: LIKELY` on turn 6 (opp 5 health, Taunts 4/4 and 6/6, 8 face damage available). Line checked by hand: legal and sufficient. Saved as `fixtures/live/g1-t6-clear-two-taunts.json` (expected `Likely`). Own Battlecry-only and spell-cost-aura cards no longer cap the result (`InertOnBoard`); `LETHAL: NO` no longer prints warnings. `dotnet test`: 36 passed. **This build not yet deployed** (HDT running).
 - 2026-11-11 Engine v2 (card plays: Blasphemy, Tachyon, Entropic, Floating, Vaultkeeper, Velocidrake; mana; board limit; Deathrattle armor; threat warning). `dotnet test`: 52 passed. `dotnet build` plugin: 0 warnings, 0 errors. **Not yet deployed.**
 - 2026-11-11 Benchmark (user's PC, Release-like test run, after warm-up), worst-case board (6 attackers, 4 Taunts, 6 playable cards): 18 enemy health -> Proven, 18,759 nodes, 6 ms; 30 health -> budget hit (200,001 nodes), 113 ms, `Inconclusive`; 200 health -> `None` in 7 nodes (bound pruning). No CPU/FPS measurement in a live game yet.
+- 2026-11-11 `tools\package.ps1` on the user's PC: Release tests 55 passed, build 0 errors, produced `dist\HearthstoneCopilot-0.2.0.zip` (24 KB: plugin DLL, engine DLL, INSTALL.txt). v0.2.0 **not yet deployed/run live** (HDT was running).
 
 ## Next live check (user)
-1. Restart HDT, enable the plugin (Options > Tracker > Plugins), play a game.
+1. Close HDT, run `tools\deploy.ps1`, start HDT (the plugin stays enabled), play a game with this deck.
 2. Expect the panel on your turns and files in `%APPDATA%\HearthstoneCopilot\snapshots`; read `plugin.log` for errors.
-3. Send or commit a few snapshots; they become the first real fixtures.
+3. Check in the newest snapshots: `Me.Hand` costs match the real card costs in game (also with Mawman Cultist on board), and `Opp.Board` Deathrattle armor shows for Tol'vir Vanguard. Review `*-lethal.json` files and set `expected` once you confirm what really was possible.
