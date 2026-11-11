@@ -94,6 +94,10 @@ namespace Copilot.Engine.Model
         public bool MyTurn { get; set; }
         public string Format { get; set; }
         public string HdtVersion { get; set; }
+        /// <summary>True while the player is choosing which starting cards to replace.</summary>
+        public bool InMulligan { get; set; }
+        /// <summary>True when the player moves first (3 starting cards, no Coin).</summary>
+        public bool OnThePlay { get; set; }
         public DateTime Timestamp { get; set; }
         public SideState Me { get; set; } = new SideState();
         public SideState Opp { get; set; } = new SideState();
@@ -104,7 +108,7 @@ namespace Copilot.Engine.Model
         public string Signature()
         {
             var sb = new StringBuilder(256);
-            sb.Append(Turn).Append(MyTurn ? 'M' : 'O');
+            sb.Append(Turn).Append(MyTurn ? 'M' : 'O').Append(InMulligan ? 'G' : '-').Append(OnThePlay ? 'P' : '-');
             AppendSide(sb, Me);
             AppendSide(sb, Opp);
             return sb.ToString();

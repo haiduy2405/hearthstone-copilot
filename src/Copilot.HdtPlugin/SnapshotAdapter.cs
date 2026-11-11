@@ -32,6 +32,8 @@ namespace Copilot.HdtPlugin
                 HdtVersion = hdtVersion,
                 Timestamp = DateTime.UtcNow
             };
+            snap.InMulligan = pe.GetTag(GameTag.MULLIGAN_STATE) == (int)Mulligan.INPUT;
+            snap.OnThePlay = Flag(pe, GameTag.FIRST_PLAYER);
             snap.Me = BuildSide(game, pe, snap.MyTurn, own: true, includeRaw: snap.Raw);
             snap.Opp = BuildSide(game, oe, false, own: false, includeRaw: snap.Raw);
             snap.Opp.Secrets = game.OpponentSecretCount;

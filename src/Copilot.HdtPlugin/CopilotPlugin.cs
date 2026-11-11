@@ -51,10 +51,10 @@ namespace Copilot.HdtPlugin
         private bool _expanded;
 
         public string Name => "Hearthstone Copilot";
-        public string Description => "Read-only lethal detector: shows a big LETHAL banner; details on demand (default key F8).";
+        public string Description => "Read-only helper: LETHAL banner, DANGER warning, mulligan advice; details on demand (default key F8).";
         public string ButtonText => "Open data folder";
         public string Author => "Duy";
-        public Version Version => new Version(0, 3, 1);
+        public Version Version => new Version(0, 4, 0);
         public MenuItem MenuItem => _menu;
 
         public void OnLoad()

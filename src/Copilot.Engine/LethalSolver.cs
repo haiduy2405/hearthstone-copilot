@@ -77,9 +77,9 @@ namespace Copilot.Engine.Lethal
 
         private struct Cd
         {
-            public int Id, Cost, Atk, Hp;
+            public int Id, Cost, Atk, Hp, Swings;
             public Fx Fx;
-            public bool Spell, Used;
+            public bool Spell, Used, Shield, Poison;
         }
 
         private sealed class S
@@ -146,7 +146,14 @@ namespace Copilot.Engine.Lethal
             foreach (var c in me.Hand)
             {
                 var rule = CardRules.Get(c.CardId);
-                hand.Add(new Cd { Id = c.Id, Cost = c.Cost, Atk = c.Attack, Hp = c.Health, Fx = rule?.Effect ?? Fx.None, Spell = c.Kind == CardKind.Spell });
+                var cd = new Cd { Id = c.Id, Cost = c.Cost, Atk = c.Attack, Hp = c.Health, Fx = rule?.Effect ?? Fx.None, Spell = c.Kind == CardKind.Spell, Swings = 1 };
+                if (rule == null && c.Kind == CardKind.Minion && c.Attack > 0
+                    && TextSupport.TryAttackBody(c.Text, out bool charge, out int swings, out bool shield, out bool poison))
+                {
+                    cd.Fx = charge ? Fx.ChargeBody : Fx.RushBody;
+                    cd.Swings = swings; cd.Shield = shield; cd.Poison = poison;
+                }
+                hand.Add(cd);
                 if (rule != null) rulesByEntity[c.Id] = rule;
             }
             st.H = hand.ToArray();
@@ -294,6 +301,7 @@ namespace Copilot.Engine.Lethal
                         case Fx.Entropic: b += totalSwings; break;
                         case Fx.Floating: b += (2 * (s.H[i].Cost + 3)) * Math.Max(1, maxSwings); break;
                         case Fx.Vaultkeeper: b += 4 * Math.Max(1, maxSwings); break;
+                        case Fx.ChargeBody: b += s.H[i].Atk * s.H[i].Swings; break;
                     }
                 }
                 return b;
@@ -360,6 +368,19 @@ namespace Copilot.Engine.Lethal
                             if (Aborted) return false;
                         }
                         return false;
+                    }
+                    case Fx.ChargeBody:
+                    case Fx.RushBody:
+                    {
+                        var alive = AliveMinions(s);
+                        if (alive.Count >= MaxBoard) return false;
+                        var n = Pay(s, i);
+                        n.A = InsertMinion(n.A, alive, alive.Count, new Att
+                        {
+                            Id = c.Id, Atk = c.Atk, Hp = c.Hp, Swings = c.Swings, Shield = c.Shield, Poison = c.Poison,
+                            CanFace = c.Fx == Fx.ChargeBody, Alive = true
+                        });
+                        return Recurse(n, playsLeft, new PlannedAction { Kind = ActionKind.Play, CardEntityId = c.Id, Slot = alive.Count });
                     }
                     case Fx.RushShred:
                     {

@@ -23,6 +23,7 @@ namespace Copilot.HdtPlugin
 
         private static readonly Brush Red = Freeze(new SolidColorBrush(Color.FromRgb(0xD6, 0x28, 0x28)));
         private static readonly Brush DarkRed = Freeze(new SolidColorBrush(Color.FromRgb(0x7A, 0x12, 0x12)));
+        private static readonly Brush Blue = Freeze(new SolidColorBrush(Color.FromRgb(0x1F, 0x5F, 0xBF)));
         private static readonly Brush Panel = Freeze(new SolidColorBrush(Color.FromRgb(0x10, 0x12, 0x1A)));
 
         private readonly Border _headBox;
@@ -123,9 +124,11 @@ namespace Copilot.HdtPlugin
             }
 
             _headBox.Visibility = Visibility.Visible;
-            _headBox.Background = v.Level == PanelLevel.Danger ? DarkRed : Red;
+            _headBox.Background = v.Level == PanelLevel.Danger ? DarkRed : v.Level == PanelLevel.Mulligan ? Blue : Red;
+            expanded = expanded || v.AutoExpand;
             _headline.Text = v.Headline;
-            _hint.Text = (expanded ? "hide details: " : "details: ") + hotkeyName;
+            _headline.FontSize = v.Level == PanelLevel.Mulligan ? 34 : 72;
+            _hint.Text = v.AutoExpand ? "mulligan advice" : (expanded ? "hide details: " : "details: ") + hotkeyName;
             _details.Text = v.Details ?? "";
             _details.Visibility = expanded && !string.IsNullOrEmpty(v.Details) ? Visibility.Visible : Visibility.Collapsed;
             if (!IsVisible) Show();

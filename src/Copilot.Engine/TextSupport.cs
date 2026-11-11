@@ -66,6 +66,36 @@ namespace Copilot.Engine
             return any ? Support.KeywordOnly : Support.Supported;
         }
 
+        /// <summary>
+        /// A hand minion whose entire text is keywords, including Charge or Rush. Such a card is an attacker the
+        /// moment it is played; nothing else about it can change the outcome. Returns false for any other text.
+        /// </summary>
+        public static bool TryAttackBody(string text, out bool charge, out int swings, out bool shield, out bool poison)
+        {
+            charge = false; swings = 1; shield = false; poison = false;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            bool hasCharge = false, hasRush = false;
+            var cleaned = Markup.Replace(text, string.Empty).Replace("\r", string.Empty).Replace("\n", ",");
+            foreach (var raw in cleaned.Split(new[] { ',', '.' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var token = raw.Trim().ToLowerInvariant();
+                if (token.Length == 0) continue;
+                if (Array.IndexOf(Keywords, token) < 0) return false;
+                switch (token)
+                {
+                    case "charge": hasCharge = true; break;
+                    case "rush": hasRush = true; break;
+                    case "windfury": swings = Math.Max(swings, 2); break;
+                    case "mega-windfury": swings = Math.Max(swings, 4); break;
+                    case "divine shield": shield = true; break;
+                    case "poisonous": poison = true; break;
+                }
+            }
+            if (!hasCharge && !hasRush) return false;
+            charge = hasCharge;
+            return true;
+        }
+
         /// <summary>Armor gained by the minion's owner when it dies, or 0 when the text has no such Deathrattle.</summary>
         public static int DeathrattleArmor(string text)
         {

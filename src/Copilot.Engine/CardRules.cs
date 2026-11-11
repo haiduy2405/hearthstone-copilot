@@ -17,7 +17,11 @@ namespace Copilot.Engine
         /// <summary>Minion: Battlecry gives adjacent minions +2/+2 (we choose the board slot).</summary>
         Vaultkeeper,
         /// <summary>Minion with Rush whose Battlecry may cast a Shred of Time (3 damage to our hero).</summary>
-        RushShred
+        RushShred,
+        /// <summary>Generic minion whose whole text is keywords including Charge: attacks the turn it is played.</summary>
+        ChargeBody,
+        /// <summary>Generic minion whose whole text is keywords including Rush: attacks minions only the turn it is played.</summary>
+        RushBody
     }
 
     public sealed class CardRule

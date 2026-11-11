@@ -6,7 +6,7 @@ using Copilot.Engine.Model;
 
 namespace Copilot.Engine
 {
-    public enum PanelLevel { Hidden = 0, Danger = 1, Likely = 2, Lethal = 3 }
+    public enum PanelLevel { Hidden = 0, Danger = 1, Likely = 2, Lethal = 3, Mulligan = 4 }
 
     /// <summary>What the panel should show right now. Hidden means: draw nothing.</summary>
     public sealed class PanelView
@@ -15,6 +15,8 @@ namespace Copilot.Engine
         public string Headline { get; set; }
         /// <summary>Full explanation (steps, damage, caveats) shown only when the player expands the panel.</summary>
         public string Details { get; set; }
+        /// <summary>Show Details without the player asking (mulligan: the details are the whole point).</summary>
+        public bool AutoExpand { get; set; }
     }
 
     /// <summary>Turns a snapshot + result into the compact panel text. Pure, so it is unit-testable.</summary>
@@ -27,6 +29,19 @@ namespace Copilot.Engine
         public static PanelView Build(GameSnapshot s, LethalResult r)
         {
             var hidden = new PanelView { Level = PanelLevel.Hidden };
+            if (s.InMulligan)
+            {
+                if (s.Me.Hand.Count == 0) return hidden;
+                var picks = MulliganAdvisor.Advise(s);
+                int keep = picks.Count(p => p.Keep);
+                return new PanelView
+                {
+                    Level = PanelLevel.Mulligan,
+                    Headline = "KEEP " + keep + " / SWAP " + (picks.Count - keep),
+                    Details = MulliganAdvisor.Format(s, picks),
+                    AutoExpand = true
+                };
+            }
             if (!s.MyTurn) return hidden;
 
             if (r.Status == LethalStatus.Proven)
@@ -39,6 +54,8 @@ namespace Copilot.Engine
             {
                 var sb = new StringBuilder();
                 AppendThreat(sb, s);
+                sb.AppendLine("Not counted: enemy hand (charge/burn), hero power, weapon swaps.");
+                if (s.Opp.Secrets > 0) sb.AppendLine(s.Opp.Secrets + " enemy secret(s) in play.");
                 return new PanelView { Level = PanelLevel.Danger, Headline = "DANGER", Details = sb.ToString().TrimEnd() };
             }
             return hidden;

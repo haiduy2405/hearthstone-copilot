@@ -24,3 +24,8 @@ Non-Taunt enemy minions are never attacked (they cannot raise face damage in the
 - Hand Cost is read from the `COST` tag; Mawman Cultist's aura should show up there.
 - Threat warning uses the visible board only (hidden hand, secrets, Charge minions and burn are not counted), so it can only under-estimate danger.
 - Panel appears only in constructed-style matches; it cannot be moved or resized yet.
+
+## v0.4.0 additions
+- Mulligan advice is a hand-written table for the current Zoo list; unknown cards fall back to "cheap minion = keep". It does not know the opponent's class. The tags used to detect the mulligan phase (`MULLIGAN_STATE`, `FIRST_PLAYER`) have not been seen live yet.
+- Charge/Rush bodies: only cards whose entire text is keywords are played by the solver. A Charge card with any extra text is ignored (conservative).
+- DANGER is still a visible-board upper bound; enemy hand, hero power and weapons are not counted.
