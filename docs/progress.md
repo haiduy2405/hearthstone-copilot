@@ -24,6 +24,8 @@ Only entries with a command or observation behind them.
 - 2026-11-11 Engine v2 (card plays: Blasphemy, Tachyon, Entropic, Floating, Vaultkeeper, Velocidrake; mana; board limit; Deathrattle armor; threat warning). `dotnet test`: 52 passed. `dotnet build` plugin: 0 warnings, 0 errors. **Not yet deployed.**
 - 2026-11-11 Benchmark (user's PC, Release-like test run, after warm-up), worst-case board (6 attackers, 4 Taunts, 6 playable cards): 18 enemy health -> Proven, 18,759 nodes, 6 ms; 30 health -> budget hit (200,001 nodes), 113 ms, `Inconclusive`; 200 health -> `None` in 7 nodes (bound pruning). No CPU/FPS measurement in a live game yet.
 - 2026-11-11 `tools\package.ps1` on the user's PC: Release tests 55 passed, build 0 errors, produced `dist\HearthstoneCopilot-0.2.0.zip` (24 KB: plugin DLL, engine DLL, INSTALL.txt). v0.2.0 **not yet deployed/run live** (HDT was running).
+- 2026-11-11 Third live game (v0.2.0): hand read correctly (CardId, Cost from `COST` tag, Kind, buffed stats), 6 turn snapshots + 1 lethal snapshot, no errors. Turn 6 reported `LIKELY` (two Taunts 3/6 and 3/4, 10 face damage vs 9 health); line verified by hand. Saved as `fixtures/live/g2-t6-two-taunts-two-rush-face.json`. Still unobserved live: Mawman Cultist's aura on hand costs, a Tol'vir Vanguard on the enemy board.
+- 2026-11-11 v0.3.0 UI per user request: big red `LETHAL` / `LETHAL?` banner, `DANGER` banner, hidden otherwise; steps only on demand (F8 or menu); `config.json` for position, scale, opacity, hotkey, click-through, sound. `dotnet test`: 62 passed; plugin build 0 errors. **Not yet seen live.**
 
 ## Next live check (user)
 1. Close HDT, run `tools\deploy.ps1`, start HDT (the plugin stays enabled), play a game with this deck.

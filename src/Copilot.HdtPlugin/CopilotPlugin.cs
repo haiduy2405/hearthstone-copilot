@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -17,7 +18,8 @@ namespace Copilot.HdtPlugin
 {
     /// <summary>
     /// Read-only HDT plugin: builds a snapshot from HDT's game state, runs the exact-lethal solver off
-    /// the UI thread and shows the result in a click-through panel. Never touches the game client.
+    /// the UI thread and shows a big LETHAL banner when there is one. Details appear on demand.
+    /// Never touches the game client.
     /// </summary>
     public class CopilotPlugin : IPlugin
     {
@@ -25,26 +27,34 @@ namespace Copilot.HdtPlugin
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HearthstoneCopilot");
         private static readonly string LogFile = Path.Combine(DataDir, "plugin.log");
         private static readonly string SnapDir = Path.Combine(DataDir, "snapshots");
+        private static readonly string ConfigFile = Path.Combine(DataDir, "config.json");
+
+        [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
 
         private volatile bool _enabled;
         private CopilotPanel _panel;
+        private PanelConfig _cfg = new PanelConfig();
         private MenuItem _menu;
         private CancellationTokenSource _cts;
         private string _lastSignature;
         private long _version;
         private long _lastTickMs;
+        private long _lastKeyMs;
         private readonly Stopwatch _clock = Stopwatch.StartNew();
         private string _hdtVersion = "?";
         private GameSnapshot _latest;
         private string _gameId = "none";
         private volatile bool _pendingRecord;
         private int _lethalSavedTurn = -1;
+        private int _soundTurn = -1;
+        private PanelView _view;
+        private bool _expanded;
 
         public string Name => "Hearthstone Copilot";
-        public string Description => "Read-only tactical copilot: exact-lethal detection shown in a compact panel.";
+        public string Description => "Read-only lethal detector: shows a big LETHAL banner; details on demand (default key F8).";
         public string ButtonText => "Open data folder";
         public string Author => "Duy";
-        public Version Version => new Version(0, 2, 0);
+        public Version Version => new Version(0, 3, 0);
         public MenuItem MenuItem => _menu;
 
         public void OnLoad()
@@ -52,22 +62,34 @@ namespace Copilot.HdtPlugin
             try
             {
                 Directory.CreateDirectory(SnapDir);
+                _cfg = PanelConfig.Load(ConfigFile, Log);
                 _hdtVersion = typeof(Hearthstone_Deck_Tracker.Plugins.IPlugin).Assembly.GetName().Version.ToString();
-                _panel = new CopilotPanel();
-                _menu = new MenuItem { Header = "Copilot: save snapshot now" };
-                _menu.Click += (s, e) => SaveSnapshot("manual");
+                BuildPanel();
+
+                _menu = new MenuItem { Header = "Hearthstone Copilot" };
+                var save = new MenuItem { Header = "Save snapshot now" };
+                save.Click += (s, e) => SaveSnapshot("manual");
+                var toggle = new MenuItem { Header = "Show/hide details" };
+                toggle.Click += (s, e) => ToggleDetails();
+                var reload = new MenuItem { Header = "Reload config.json" };
+                reload.Click += (s, e) => ReloadConfig();
+                _menu.Items.Add(save);
+                _menu.Items.Add(toggle);
+                _menu.Items.Add(reload);
+
                 GameEvents.OnTurnStart.Add(OnTurnStart);
+                GameEvents.OnInMenu.Add(() => { if (_enabled) HideAll(); });
                 GameEvents.OnGameStart.Add(() =>
                 {
                     if (!_enabled) return;
                     _gameId = Guid.NewGuid().ToString("N").Substring(0, 8);
                     _lethalSavedTurn = -1;
+                    _soundTurn = -1;
                     _lastSignature = null;
                     Log("Game start " + _gameId);
                 });
-                GameEvents.OnInMenu.Add(() => { if (_enabled) _panel?.HidePanel(); });
                 _enabled = true;
-                Log("Loaded v" + Version + " against HDT " + _hdtVersion);
+                Log("Loaded v" + Version + " against HDT " + _hdtVersion + " (hotkey " + _cfg.Hotkey + ")");
             }
             catch (Exception ex)
             {
@@ -90,19 +112,59 @@ namespace Copilot.HdtPlugin
             try { Process.Start("explorer.exe", DataDir); } catch (Exception ex) { Log("Open folder failed: " + ex.Message); }
         }
 
+        private void BuildPanel()
+        {
+            try { _panel?.Close(); } catch { }
+            _panel = new CopilotPanel(_cfg);
+            _panel.ToggleRequested += ToggleDetails;
+        }
+
+        private void ReloadConfig()
+        {
+            try
+            {
+                _cfg = PanelConfig.Load(ConfigFile, Log);
+                BuildPanel();
+                _panel.Render(_view, _expanded, _cfg.Hotkey);
+                Log("Config reloaded");
+            }
+            catch (Exception ex) { Log("Reload failed: " + ex.Message); }
+        }
+
+        private void ToggleDetails()
+        {
+            _expanded = !_expanded;
+            _panel?.Render(_view, _expanded, _cfg.Hotkey);
+        }
+
+        private void HideAll()
+        {
+            _view = null;
+            _panel?.HidePanel();
+        }
+
         public void OnUpdate()
         {
             if (!_enabled) return;
-            // HDT calls this ~every 100 ms; analyse at most ~4x per second.
             long now = _clock.ElapsedMilliseconds;
+
+            // Hotkey: polled (HDT gives plugins no key events). Only while the panel is visible.
+            if (_view != null && _view.Level != PanelLevel.Hidden && now - _lastKeyMs > 300
+                && (GetAsyncKeyState(_cfg.HotkeyVirtualKey()) & 0x8001) != 0)
+            {
+                _lastKeyMs = now;
+                ToggleDetails();
+            }
+
+            // HDT calls this ~every 100 ms; analyse at most ~4x per second.
             if (now - _lastTickMs < 250) return;
             _lastTickMs = now;
 
             try
             {
                 var game = Core.Game;
-                if (game == null || !game.IsRunning || game.IsInMenu) { _panel?.HidePanel(); return; }
-                if (!game.IsConstructedMatch && !game.IsTraditionalHearthstoneMatch) { _panel?.HidePanel(); return; }
+                if (game == null || !game.IsRunning || game.IsInMenu) { HideAll(); return; }
+                if (!game.IsConstructedMatch && !game.IsTraditionalHearthstoneMatch) { HideAll(); return; }
 
                 var snap = SnapshotAdapter.Build(game, _hdtVersion, _gameId);
                 if (snap == null) return;
@@ -114,6 +176,7 @@ namespace Copilot.HdtPlugin
                     _pendingRecord = false;
                     SaveSnapshot(snap, "turn", null);
                 }
+
                 var sig = snap.Signature();
                 if (sig == _lastSignature) return;
                 _lastSignature = sig;
@@ -126,8 +189,11 @@ namespace Copilot.HdtPlugin
                 {
                     var sw = Stopwatch.StartNew();
                     var result = LethalSolver.Solve(snap, token: token);
-                    var text = Presenter.Format(snap, result);
-                    if ((result.Status == LethalStatus.Proven || result.Status == LethalStatus.Likely) && snap.Turn != _lethalSavedTurn)
+                    var view = Presenter.Build(snap, result);
+                    if (view.Details != null)
+                        view.Details += "\n(" + sw.ElapsedMilliseconds + " ms, " + result.NodesVisited + " nodes)";
+                    bool lethal = result.Status == LethalStatus.Proven || result.Status == LethalStatus.Likely;
+                    if (lethal && snap.Turn != _lethalSavedTurn)
                     {
                         _lethalSavedTurn = snap.Turn;
                         SaveSnapshot(snap, "lethal", result.Status.ToString());
@@ -135,8 +201,14 @@ namespace Copilot.HdtPlugin
                     if (version != Interlocked.Read(ref _version) || token.IsCancellationRequested) return; // stale
                     Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (_enabled && version == Interlocked.Read(ref _version))
-                            _panel?.SetText(text + "\n(" + sw.ElapsedMilliseconds + " ms, " + result.NodesVisited + " nodes)");
+                        if (!_enabled || version != Interlocked.Read(ref _version)) return;
+                        _view = view;
+                        _panel?.Render(view, _expanded, _cfg.Hotkey);
+                        if (lethal && _cfg.Sound && snap.Turn != _soundTurn)
+                        {
+                            _soundTurn = snap.Turn;
+                            try { System.Media.SystemSounds.Exclamation.Play(); } catch { }
+                        }
                     }));
                 }, token);
             }

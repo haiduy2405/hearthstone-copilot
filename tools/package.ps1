@@ -19,7 +19,7 @@ Hearthstone Copilot - install
 Logs and recorded snapshots: %APPDATA%\HearthstoneCopilot
 Built against HDT 1.59.11. Read-only: it never touches the game client.
 "@ | Set-Content "$stage\INSTALL.txt"
-$zip = Join-Path $Out "HearthstoneCopilot-0.2.0.zip"
+$zip = Join-Path $Out "HearthstoneCopilot-0.3.0.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path $stage -DestinationPath $zip
 Get-Item $zip | Select-Object Name, Length

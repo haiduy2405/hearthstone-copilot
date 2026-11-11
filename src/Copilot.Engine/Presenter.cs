@@ -6,9 +6,44 @@ using Copilot.Engine.Model;
 
 namespace Copilot.Engine
 {
+    public enum PanelLevel { Hidden = 0, Danger = 1, Likely = 2, Lethal = 3 }
+
+    /// <summary>What the panel should show right now. Hidden means: draw nothing.</summary>
+    public sealed class PanelView
+    {
+        public PanelLevel Level { get; set; }
+        public string Headline { get; set; }
+        /// <summary>Full explanation (steps, damage, caveats) shown only when the player expands the panel.</summary>
+        public string Details { get; set; }
+    }
+
     /// <summary>Turns a snapshot + result into the compact panel text. Pure, so it is unit-testable.</summary>
     public static class Presenter
     {
+        /// <summary>
+        /// Minimal-noise view: a big headline only when there is lethal (or the player is in visible danger);
+        /// everything else is hidden. The step list lives in Details and is shown on demand.
+        /// </summary>
+        public static PanelView Build(GameSnapshot s, LethalResult r)
+        {
+            var hidden = new PanelView { Level = PanelLevel.Hidden };
+            if (!s.MyTurn) return hidden;
+
+            if (r.Status == LethalStatus.Proven)
+                return new PanelView { Level = PanelLevel.Lethal, Headline = "LETHAL", Details = Format(s, r) };
+            if (r.Status == LethalStatus.Likely)
+                return new PanelView { Level = PanelLevel.Likely, Headline = "LETHAL?", Details = Format(s, r) };
+
+            var t = ThreatAnalyzer.Analyze(s);
+            if (t.Danger)
+            {
+                var sb = new StringBuilder();
+                AppendThreat(sb, s);
+                return new PanelView { Level = PanelLevel.Danger, Headline = "DANGER", Details = sb.ToString().TrimEnd() };
+            }
+            return hidden;
+        }
+
         public static string Format(GameSnapshot s, LethalResult r)
         {
             var sb = new StringBuilder();

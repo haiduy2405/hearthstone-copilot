@@ -32,3 +32,6 @@ If HDT updates and the folder name changes, pass `-p:HdtDir="...\app-X.Y.Z"` to 
 
 ## What the panel shows
 `LETHAL: YES (verified)` / `LIKELY` / `NO (modelled actions)` / `UNKNOWN`, the ordered steps (card plays and attacks) and damage vs. required. On `NO` it adds a `DANGER`/`Watch` line when the visible enemy board threatens your health. See `docs/known-limitations.md` for exactly what is modelled.
+
+## Panel behaviour (v0.3)
+Big red `LETHAL` (verified) or `LETHAL?` (a line exists but something is unmodelled/unverified); dark red `DANGER` when the visible enemy board can kill you; nothing otherwise. Press **F8** (or Plugins menu > Hearthstone Copilot > Show/hide details) to see the steps. Settings: `%APPDATA%\HearthstoneCopilot\config.json` (`Left`, `Top`, `Scale`, `Opacity`, `Hotkey` F1-F12, `ClickThrough`, `Sound`); reload from the same menu.
