@@ -19,7 +19,7 @@ namespace Copilot.Engine
             {
                 case LethalStatus.Proven: sb.AppendLine("LETHAL: YES (verified)"); break;
                 case LethalStatus.Likely: sb.AppendLine("LETHAL: LIKELY"); break;
-                case LethalStatus.None: sb.AppendLine("LETHAL: NO"); break;
+                case LethalStatus.None: sb.Append("LETHAL: NO (attacks only)"); return sb.ToString();
                 default: sb.AppendLine("LETHAL: UNKNOWN"); break;
             }
 

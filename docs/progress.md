@@ -20,6 +20,7 @@ Only entries with a command or observation behind them.
 
 - 2026-11-11 First live game (Standard, HDT 1.59.11): plugin loaded, panel shown, 8 snapshots written, no errors in `plugin.log`. Verified against raw tags: hero health = HEALTH-DAMAGE, board/secret counts, Support classification. **Bug found:** `OnTurnStart` fires before HDT updates turn tags, so those snapshots had MyTurn=false, mana 0, no attacks. Fix: record once per own turn when state is settled (MyTurn and mana > 0), plus an extra snapshot whenever the solver reports Proven/Likely. Also `GameId` now a short id per game.
 - 2026-11-11 After fix: build 0 errors, 27/27 tests; **fix not yet deployed/verified live** (HDT was running).
+- 2026-11-11 Second live game: panel showed `LETHAL: NO` and a 7-step `LETHAL: LIKELY` on turn 6 (opp 5 health, Taunts 4/4 and 6/6, 8 face damage available). Line checked by hand: legal and sufficient. Saved as `fixtures/live/g1-t6-clear-two-taunts.json` (expected `Likely`). Own Battlecry-only and spell-cost-aura cards no longer cap the result (`InertOnBoard`); `LETHAL: NO` no longer prints warnings. `dotnet test`: 36 passed. **This build not yet deployed** (HDT running).
 
 ## Next live check (user)
 1. Restart HDT, enable the plugin (Options > Tracker > Plugins), play a game.

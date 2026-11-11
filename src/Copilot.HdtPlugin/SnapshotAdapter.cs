@@ -104,7 +104,8 @@ namespace Copilot.HdtPlugin
                 Immune = Flag(e, GameTag.IMMUNE),
                 AttacksRemaining = attacks,
                 CanAttackHero = !(rush && !charge && turnsInPlay == 0),
-                Support = support
+                Support = support,
+                Text = text
             };
         }
 

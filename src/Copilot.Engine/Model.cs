@@ -12,7 +12,9 @@ namespace Copilot.Engine.Model
         /// <summary>Only keywords the engine models (Taunt, Divine Shield, ...).</summary>
         KeywordOnly = 1,
         /// <summary>Has effect text the engine does not model. Blocks "proven" claims.</summary>
-        Unknown = 2
+        Unknown = 2,
+        /// <summary>Effect (Battlecry, cost aura) cannot influence an attack-only line for a minion already in play.</summary>
+        InertOnBoard = 3
     }
 
     public sealed class MinionState
@@ -32,6 +34,8 @@ namespace Copilot.Engine.Model
         /// <summary>False for Rush minions that cannot hit the hero yet.</summary>
         public bool CanAttackHero { get; set; } = true;
         public Support Support { get; set; }
+        /// <summary>Base card text (markup included), kept so reviews can see why a card was Unknown.</summary>
+        public string Text { get; set; }
 
         public override string ToString() => (Name ?? CardId ?? "?") + "#" + Id;
     }
