@@ -30,6 +30,10 @@ namespace Copilot.HdtPlugin
         private readonly TextBlock _hint;
         private readonly TextBlock _details;
         private readonly bool _clickThrough;
+        private readonly System.Windows.Shapes.Ellipse _dot;
+        private readonly TextBlock _dotText;
+        private readonly StackPanel _dotRow;
+        private static readonly Brush Green = Freeze(new SolidColorBrush(Color.FromRgb(0x2E, 0xCC, 0x71)));
 
         public event Action ToggleRequested;
 
@@ -52,7 +56,7 @@ namespace Copilot.HdtPlugin
             {
                 Foreground = Brushes.White,
                 FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 38,
+                FontSize = 72,
                 FontWeight = FontWeights.ExtraBold,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -60,13 +64,14 @@ namespace Copilot.HdtPlugin
             {
                 Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
                 FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 11,
+                FontSize = 16,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             _headBox = new Border
             {
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(22, 6, 22, 6),
+                CornerRadius = new CornerRadius(12),
+                BorderBrush = Brushes.White, BorderThickness = new Thickness(3),
+                Padding = new Thickness(36, 8, 36, 10),
                 Child = new StackPanel { Children = { _headline, _hint } }
             };
             _details = new TextBlock
@@ -79,7 +84,19 @@ namespace Copilot.HdtPlugin
             };
             var detailsBox = new Border { Background = Panel, CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 4, 0, 0), Child = _details };
 
-            var root = new StackPanel { Children = { _headBox, detailsBox } };
+            _dot = new System.Windows.Shapes.Ellipse { Width = 12, Height = 12, Fill = Green, VerticalAlignment = VerticalAlignment.Center };
+            _dotText = new TextBlock
+            {
+                Text = "Copilot", Foreground = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 12, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center
+            };
+            _dotRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Margin = new Thickness(2, 0, 0, 4),
+                Children = { _dot, _dotText }
+            };
+
+            var root = new StackPanel { Children = { _dotRow, _headBox, detailsBox } };
             root.LayoutTransform = new ScaleTransform(cfg.Scale, cfg.Scale);
             Content = root;
 
@@ -96,14 +113,31 @@ namespace Copilot.HdtPlugin
 
         public void Render(PanelView v, bool expanded, string hotkeyName)
         {
-            if (v == null || v.Level == PanelLevel.Hidden) { HidePanel(); return; }
+            // Status dot is always visible during a match so a hidden banner never looks like a dead plugin.
+            if (v == null || v.Level == PanelLevel.Hidden)
+            {
+                _headBox.Visibility = Visibility.Collapsed;
+                _details.Visibility = Visibility.Collapsed;
+                if (!IsVisible) Show();
+                return;
+            }
 
+            _headBox.Visibility = Visibility.Visible;
             _headBox.Background = v.Level == PanelLevel.Danger ? DarkRed : Red;
             _headline.Text = v.Headline;
             _hint.Text = (expanded ? "hide details: " : "details: ") + hotkeyName;
             _details.Text = v.Details ?? "";
             _details.Visibility = expanded && !string.IsNullOrEmpty(v.Details) ? Visibility.Visible : Visibility.Collapsed;
             if (!IsVisible) Show();
+        }
+
+        /// <summary>Show only the green status dot (match running, nothing to report).</summary>
+        public void ShowIdle()
+        {
+            if (IsVisible) return;
+            _headBox.Visibility = Visibility.Collapsed;
+            _details.Visibility = Visibility.Collapsed;
+            Show();
         }
 
         public void HidePanel()

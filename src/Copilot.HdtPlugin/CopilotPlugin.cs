@@ -46,7 +46,7 @@ namespace Copilot.HdtPlugin
         private string _gameId = "none";
         private volatile bool _pendingRecord;
         private int _lethalSavedTurn = -1;
-        private int _soundTurn = -1;
+        private string _soundKey = "";
         private PanelView _view;
         private bool _expanded;
 
@@ -54,7 +54,7 @@ namespace Copilot.HdtPlugin
         public string Description => "Read-only lethal detector: shows a big LETHAL banner; details on demand (default key F8).";
         public string ButtonText => "Open data folder";
         public string Author => "Duy";
-        public Version Version => new Version(0, 3, 0);
+        public Version Version => new Version(0, 3, 1);
         public MenuItem MenuItem => _menu;
 
         public void OnLoad()
@@ -84,7 +84,7 @@ namespace Copilot.HdtPlugin
                     if (!_enabled) return;
                     _gameId = Guid.NewGuid().ToString("N").Substring(0, 8);
                     _lethalSavedTurn = -1;
-                    _soundTurn = -1;
+                    _soundKey = "";
                     _lastSignature = null;
                     Log("Game start " + _gameId);
                 });
@@ -169,6 +169,7 @@ namespace Copilot.HdtPlugin
                 var snap = SnapshotAdapter.Build(game, _hdtVersion, _gameId);
                 if (snap == null) return;
                 _latest = snap;
+                if (_view == null) _panel?.ShowIdle();
 
                 // OnTurnStart fires before HDT updates turn tags, so record once the state has settled.
                 if (_pendingRecord && snap.MyTurn && snap.Me.Mana > 0)
@@ -204,10 +205,10 @@ namespace Copilot.HdtPlugin
                         if (!_enabled || version != Interlocked.Read(ref _version)) return;
                         _view = view;
                         _panel?.Render(view, _expanded, _cfg.Hotkey);
-                        if (lethal && _cfg.Sound && snap.Turn != _soundTurn)
+                        if (_cfg.Sound && view.Level != PanelLevel.Hidden)
                         {
-                            _soundTurn = snap.Turn;
-                            try { System.Media.SystemSounds.Exclamation.Play(); } catch { }
+                            var key = snap.GameId + ":" + snap.Turn + ":" + view.Level;
+                            if (key != _soundKey) { _soundKey = key; Beep(view.Level); }
                         }
                     }));
                 }, token);
@@ -216,6 +217,24 @@ namespace Copilot.HdtPlugin
             {
                 Log("OnUpdate error: " + ex);
             }
+        }
+
+        private static void Beep(PanelLevel level)
+        {
+            // Console.Beep blocks, so play on a pool thread. Distinct patterns: lethal rises, danger is low and double.
+            Task.Run(() =>
+            {
+                try
+                {
+                    switch (level)
+                    {
+                        case PanelLevel.Lethal: Console.Beep(900, 140); Console.Beep(1200, 140); Console.Beep(1600, 260); break;
+                        case PanelLevel.Likely: Console.Beep(900, 140); Console.Beep(1200, 220); break;
+                        case PanelLevel.Danger: Console.Beep(400, 220); Console.Beep(400, 220); break;
+                    }
+                }
+                catch { try { System.Media.SystemSounds.Exclamation.Play(); } catch { } }
+            });
         }
 
         private void OnTurnStart(ActivePlayer who)

@@ -15,8 +15,8 @@ namespace Copilot.HdtPlugin
         public string Hotkey { get; set; } = "F8";
         /// <summary>true: mouse clicks pass through the panel to the game. false: clicking the panel toggles details.</summary>
         public bool ClickThrough { get; set; } = true;
-        /// <summary>Play a short system sound once per turn when lethal appears.</summary>
-        public bool Sound { get; set; } = false;
+        /// <summary>Play a beep when LETHAL / LETHAL? / DANGER first appears in a turn.</summary>
+        public bool Sound { get; set; } = true;
 
         public int HotkeyVirtualKey()
         {
