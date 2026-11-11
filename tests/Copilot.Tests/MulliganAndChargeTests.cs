@@ -23,46 +23,48 @@ namespace Copilot.Tests
         private static bool Kept(System.Collections.Generic.List<MulliganPick> p, string name) => p.First(x => x.Name == name).Keep;
 
         [Fact]
-        public void CheapMinions_AreKept_ReactiveSpellsAreReplaced()
+        public void HighWinRateCards_AreKept_LowOnesReplaced()
         {
-            var s = Mull(true, C("TIME_025", "Timehopper", 2, atk: 4, hp: 4), C("BE_729", "Mawman", 3, atk: 4, hp: 4),
-                         C("BE_086", "Blasphemy", 4, CardKind.Spell));
-            var p = MulliganAdvisor.Advise(s);
-            Assert.True(Kept(p, "Timehopper"));
-            Assert.True(Kept(p, "Mawman"));
-            Assert.False(Kept(p, "Blasphemy"));
-        }
-
-        [Fact]
-        public void OnlyOneExpensiveCard_AndOnlyWithCheapPlays()
-        {
-            var s = Mull(false, C("TIME_025", "Timehopper", 2, atk: 4, hp: 4), C("CORE_SCH_713", "Neophyte", 2, atk: 3, hp: 2),
-                         C("BE_728", "Zakajz", 4, atk: 5, hp: 5), C("TIME_029", "Velocidrake", 5, atk: 5, hp: 5));
-            var p = MulliganAdvisor.Advise(s);
-            Assert.True(Kept(p, "Zakajz"));
-            Assert.False(Kept(p, "Velocidrake")); // second expensive card
-        }
-
-        [Fact]
-        public void ExpensiveCard_WithoutCheapPlays_IsReplaced()
-        {
-            var s = Mull(true, C("BE_728", "Zakajz", 4, atk: 5, hp: 5), C("BE_086", "Blasphemy", 4, CardKind.Spell), C("TIME_027", "Tachyon", 2, CardKind.Spell));
-            var p = MulliganAdvisor.Advise(s);
-            Assert.False(Kept(p, "Zakajz"));
-        }
-
-        [Fact]
-        public void HandWithNoEarlyPlay_KeepsBestCheapCard()
-        {
-            var s = Mull(true, C("BE_085", "Ritual of Summoning", 2, CardKind.Spell), C("BE_086", "Blasphemy", 4, CardKind.Spell), C("TIME_027", "Tachyon", 2, CardKind.Spell));
+            var s = Mull(true, C("BE_085", "Ritual of Summoning", 2, CardKind.Spell), C("TIME_025", "Timehopper", 2, atk: 4, hp: 4),
+                         C("BE_729", "Mawman", 3, atk: 4, hp: 4), C("BE_151", "Vaultkeeper", 5, atk: 3, hp: 3));
             var p = MulliganAdvisor.Advise(s);
             Assert.True(Kept(p, "Ritual of Summoning"));
+            Assert.True(Kept(p, "Timehopper"));
+            Assert.False(Kept(p, "Mawman"));      // 59.7% < threshold
+            Assert.False(Kept(p, "Vaultkeeper")); // 54.5%
+        }
+
+        [Fact]
+        public void Threshold_IsInclusive_AndShownInReason()
+        {
+            var s = Mull(false, C("CORE_UNG_205", "Glacial Shard", 1, atk: 2, hp: 1), C("TIME_025", "Timehopper", 2, atk: 4, hp: 4));
+            var p = MulliganAdvisor.Advise(s);
+            Assert.False(Kept(p, "Glacial Shard")); // 63.4
+            Assert.True(Kept(p, "Timehopper"));     // 65.4
+            Assert.Contains("65.4", p.First(x => x.Name == "Timehopper").Reason);
+        }
+
+        [Fact]
+        public void TheCoin_IsNeverListed()
+        {
+            var s = Mull(false, C("GAME_005", "The Coin", 0, CardKind.Spell), C("BE_726", "Ritual of C'Thun", 1, CardKind.Spell));
+            var p = MulliganAdvisor.Advise(s);
+            Assert.Single(p);
+        }
+
+        [Fact]
+        public void UnknownCard_UsesCostRule()
+        {
+            var s = Mull(true, C("NEW_1", "Cheap", 2, atk: 2, hp: 2), C("NEW_2", "Big", 6, atk: 6, hp: 6));
+            var p = MulliganAdvisor.Advise(s);
+            Assert.True(Kept(p, "Cheap"));
+            Assert.False(Kept(p, "Big"));
         }
 
         [Fact]
         public void Mulligan_PanelIsAutoExpanded_AndHeadlineCountsKeeps()
         {
-            var s = Mull(true, C("TIME_025", "Timehopper", 2, atk: 4, hp: 4), C("BE_086", "Blasphemy", 4, CardKind.Spell), C("BE_726", "Ritual of C'Thun", 1, CardKind.Spell));
+            var s = Mull(true, C("TIME_025", "Timehopper", 2, atk: 4, hp: 4), C("BE_086", "Blasphemy", 4, CardKind.Spell), C("BE_729", "Mawman", 3, atk: 4, hp: 4));
             var v = Presenter.Build(s, LethalSolver.Solve(s));
             Assert.Equal(PanelLevel.Mulligan, v.Level);
             Assert.True(v.AutoExpand);

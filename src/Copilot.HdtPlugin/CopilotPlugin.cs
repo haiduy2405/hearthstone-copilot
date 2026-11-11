@@ -47,6 +47,7 @@ namespace Copilot.HdtPlugin
         private volatile bool _pendingRecord;
         private int _lethalSavedTurn = -1;
         private string _soundKey = "";
+        private string _mulliganSavedGame = "";
         private PanelView _view;
         private bool _expanded;
 
@@ -176,6 +177,12 @@ namespace Copilot.HdtPlugin
                 {
                     _pendingRecord = false;
                     SaveSnapshot(snap, "turn", null);
+                }
+
+                if (snap.InMulligan && _mulliganSavedGame != _gameId && snap.Me.Hand.Count > 0)
+                {
+                    _mulliganSavedGame = _gameId;
+                    SaveSnapshot(snap, "mulligan", null);
                 }
 
                 var sig = snap.Signature();

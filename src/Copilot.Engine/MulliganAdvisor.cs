@@ -10,88 +10,70 @@ namespace Copilot.Engine
         public int Cost { get; set; }
         public bool Keep { get; set; }
         public string Reason { get; set; }
+        public double? WinRate { get; set; }
     }
 
     /// <summary>
-    /// Keep/replace advice for the starting hand of the Zoo Warlock deck in docs/deck-cards.md.
-    /// The per-card values are hand-written judgement from card text (cost, stats, whether the card needs a board),
-    /// NOT win-rate data. Unknown cards fall back to a cost-based rule. Pure function, unit-tested.
+    /// Keep/replace advice for the Zoo Warlock list in docs/deck-cards.md, driven by the per-card "Mulligan WR"
+    /// the user supplied (see docs/mulligan-data.md). It is the win rate of games in which the card was kept, so it
+    /// carries selection bias (cards that are rarely kept are only kept in good hands). Cards without data fall back
+    /// to "cheap minion = keep". Pure function, unit-tested.
     /// </summary>
     public static class MulliganAdvisor
     {
-        // Value 0-10: how much a Zoo hand wants this card in the opening. Keep threshold is 6.
-        private static readonly Dictionary<string, int> Value = new Dictionary<string, int>
+        /// <summary>Keep when the card's Mulligan WR is at least this many percent.</summary>
+        public const double KeepThreshold = 64.0;
+
+        // CardId -> Mulligan WR (%). Source: user's deck statistics screenshot, 2026-11-11.
+        private static readonly Dictionary<string, double> Wr = new Dictionary<string, double>
         {
-            { "TIME_025", 9 }, // Twilight Timehopper: 4/4 for 2 (cost: self damage later)
-            { "BE_729", 8 },   // Mawman Cultist: 4/4 for 3 (taxes our own spells)
-            { "CORE_SCH_713", 7 }, // Cult Neophyte: 3/2 for 2
-            { "CORE_UNG_205", 6 }, // Glacial Shard: 2/1 for 1 + Freeze
-            { "CAP_405", 6 },  // Godfather Kazakus: 3/3 for 3, custom battlecry
-            { "BE_728", 6 },   // Zakajz the Corruptor: 5/5 for 4
-            { "CATA_210", 5 }, // Twilight Egg: 0/2 for 1, grows later
-            { "TIME_029", 5 }, // Ruinous Velocidrake: 5/5 Rush for 5
-            { "TLC_451", 4 },  // Cursed Catacombs: free Discover
-            { "BE_085", 4 },   // Ritual of Summoning: delayed 2x 2/4 Taunt
-            { "BE_094", 4 },   // Floating Lessons: needs a board
-            { "BE_151", 4 },   // Vaultkeeper: 3/3 for 5, needs a board
-            { "BE_086", 3 },   // Blasphemy: reactive AoE
-            { "TIME_026", 3 }, // Entropic Continuity: needs a board
-            { "TIME_027", 3 }, // Tachyon Barrage: finisher
-            { "BE_726", 2 },   // Ritual of C'Thun: slow
+            { "BE_085", 71.1 },       // Ritual of Summoning
+            { "BE_726", 69.8 },       // Ritual of C'Thun
+            { "BE_094", 68.5 },       // Floating Lessons
+            { "CATA_210", 65.6 },     // Twilight Egg
+            { "CAP_405", 65.6 },      // Godfather Kazakus
+            { "TIME_025", 65.4 },     // Twilight Timehopper
+            { "CORE_UNG_205", 63.4 }, // Glacial Shard
+            { "BE_086", 62.7 },       // Blasphemy
+            { "TIME_027", 62.2 },     // Tachyon Barrage
+            { "TLC_451", 62.0 },      // Cursed Catacombs
+            { "CORE_SCH_713", 61.8 }, // Cult Neophyte
+            { "TIME_026", 61.6 },     // Entropic Continuity
+            { "BE_728", 61.6 },       // Zakajz the Corruptor
+            { "BE_729", 59.7 },       // Mawman Cultist
+            { "TIME_029", 59.1 },     // Ruinous Velocidrake
+            { "BE_151", 54.5 },       // Vaultkeeper
         };
 
         public static List<MulliganPick> Advise(GameSnapshot s)
         {
             var picks = new List<MulliganPick>();
-            var hand = s.Me.Hand;
-            var seenExpensive = new HashSet<string>();
-            int expensiveKept = 0;
-            int cheapKept = 0;
-
-            foreach (var c in hand.OrderBy(h => h.Cost))
+            foreach (var c in s.Me.Hand.Where(h => h.CardId != "GAME_005").OrderBy(h => h.Cost)) // The Coin is not a choice
             {
                 var pick = new MulliganPick { Name = c.Name ?? c.CardId, Cost = c.Cost };
-                int v;
-                bool known = c.CardId != null && Value.TryGetValue(c.CardId, out v);
-                v = known ? Value[c.CardId] : (c.Kind == CardKind.Minion && c.Cost <= 3 ? 6 : 3);
-                bool expensive = c.Cost >= 4;
-
-                if (v < 6) { pick.Keep = false; pick.Reason = known ? "weak in an opening hand" : "unknown card, not cheap"; }
-                else if (expensive)
+                if (c.CardId != null && Wr.TryGetValue(c.CardId, out var w))
                 {
-                    // Only a second expensive card is a problem; on the draw one expensive card is fine with cheap plays.
-                    if (expensiveKept >= 1 || cheapKept < 2) { pick.Keep = false; pick.Reason = "too slow with this hand"; }
-                    else { pick.Keep = true; pick.Reason = "strong, hand has cheap plays"; expensiveKept++; }
+                    pick.WinRate = w;
+                    pick.Keep = w >= KeepThreshold;
+                    pick.Reason = w.ToString("0.0") + "% WR";
                 }
-                else { pick.Keep = true; pick.Reason = c.Cost <= 2 ? "cheap play" : "good on curve"; cheapKept++; }
-
-                if (!known && pick.Keep) pick.Reason += " (not in table, cost rule)";
-                if (c.Cost >= 4 && !pick.Keep && !seenExpensive.Add(c.CardId ?? "")) pick.Reason = "duplicate expensive card";
+                else
+                {
+                    pick.Keep = c.Kind == CardKind.Minion && c.Cost <= 3;
+                    pick.Reason = "no data, cost rule";
+                }
                 picks.Add(pick);
             }
-
-            // A hand with nothing to do on turn 1-2 must keep its best cheap card.
-            if (!picks.Any(p => p.Keep && p.Cost <= 2))
-            {
-                var best = picks.Where(p => p.Cost <= 2).OrderByDescending(p => ValueOf(hand, p)).FirstOrDefault();
-                if (best != null && ValueOf(hand, best) >= 4) { best.Keep = true; best.Reason = "keep one early play"; }
-            }
             return picks;
-        }
-
-        private static int ValueOf(List<HandCard> hand, MulliganPick p)
-        {
-            var c = hand.First(h => (h.Name ?? h.CardId) == p.Name);
-            return c.CardId != null && Value.TryGetValue(c.CardId, out var v) ? v : 3;
         }
 
         public static string Format(GameSnapshot s, List<MulliganPick> picks)
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine(s.OnThePlay ? "MULLIGAN (on the play)" : "MULLIGAN (on the draw)");
-            foreach (var p in picks.OrderBy(x => x.Keep ? 0 : 1).ThenBy(x => x.Cost))
+            foreach (var p in picks.OrderBy(x => x.Keep ? 0 : 1).ThenByDescending(x => x.WinRate ?? 0))
                 sb.AppendLine((p.Keep ? "KEEP    " : "REPLACE ") + p.Cost + "  " + p.Name + "  - " + p.Reason);
-            sb.Append("Hand-written ranking, not win-rate data");
+            sb.Append("Keep = Mulligan WR >= " + KeepThreshold.ToString("0") + "% (your deck stats)");
             return sb.ToString();
         }
     }

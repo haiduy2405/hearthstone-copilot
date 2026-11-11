@@ -37,6 +37,7 @@ namespace Copilot.HdtPlugin
             snap.Me = BuildSide(game, pe, snap.MyTurn, own: true, includeRaw: snap.Raw);
             snap.Opp = BuildSide(game, oe, false, own: false, includeRaw: snap.Raw);
             snap.Opp.Secrets = game.OpponentSecretCount;
+            if (snap.InMulligan) { snap.Raw.Add(Raw(pe)); snap.Raw.Add(Raw(oe)); } // audit the tags that gate the mulligan view
             return snap;
         }
 
