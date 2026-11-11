@@ -36,6 +36,9 @@ namespace Copilot.HdtPlugin
         private readonly Stopwatch _clock = Stopwatch.StartNew();
         private string _hdtVersion = "?";
         private GameSnapshot _latest;
+        private string _gameId = "none";
+        private volatile bool _pendingRecord;
+        private int _lethalSavedTurn = -1;
 
         public string Name => "Hearthstone Copilot";
         public string Description => "Read-only tactical copilot: exact-lethal detection shown in a compact panel.";
@@ -54,6 +57,14 @@ namespace Copilot.HdtPlugin
                 _menu = new MenuItem { Header = "Copilot: save snapshot now" };
                 _menu.Click += (s, e) => SaveSnapshot("manual");
                 GameEvents.OnTurnStart.Add(OnTurnStart);
+                GameEvents.OnGameStart.Add(() =>
+                {
+                    if (!_enabled) return;
+                    _gameId = Guid.NewGuid().ToString("N").Substring(0, 8);
+                    _lethalSavedTurn = -1;
+                    _lastSignature = null;
+                    Log("Game start " + _gameId);
+                });
                 GameEvents.OnInMenu.Add(() => { if (_enabled) _panel?.HidePanel(); });
                 _enabled = true;
                 Log("Loaded v" + Version + " against HDT " + _hdtVersion);
@@ -93,9 +104,16 @@ namespace Copilot.HdtPlugin
                 if (game == null || !game.IsRunning || game.IsInMenu) { _panel?.HidePanel(); return; }
                 if (!game.IsConstructedMatch && !game.IsTraditionalHearthstoneMatch) { _panel?.HidePanel(); return; }
 
-                var snap = SnapshotAdapter.Build(game, _hdtVersion);
+                var snap = SnapshotAdapter.Build(game, _hdtVersion, _gameId);
                 if (snap == null) return;
                 _latest = snap;
+
+                // OnTurnStart fires before HDT updates turn tags, so record once the state has settled.
+                if (_pendingRecord && snap.MyTurn && snap.Me.Mana > 0)
+                {
+                    _pendingRecord = false;
+                    SaveSnapshot(snap, "turn", null);
+                }
                 var sig = snap.Signature();
                 if (sig == _lastSignature) return;
                 _lastSignature = sig;
@@ -109,6 +127,11 @@ namespace Copilot.HdtPlugin
                     var sw = Stopwatch.StartNew();
                     var result = LethalSolver.Solve(snap, token: token);
                     var text = Presenter.Format(snap, result);
+                    if ((result.Status == LethalStatus.Proven || result.Status == LethalStatus.Likely) && snap.Turn != _lethalSavedTurn)
+                    {
+                        _lethalSavedTurn = snap.Turn;
+                        SaveSnapshot(snap, "lethal", result.Status.ToString());
+                    }
                     if (version != Interlocked.Read(ref _version) || token.IsCancellationRequested) return; // stale
                     Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                     {
@@ -126,18 +149,24 @@ namespace Copilot.HdtPlugin
         private void OnTurnStart(ActivePlayer who)
         {
             if (!_enabled) return;
-            // Record every own turn start so real games become offline fixtures.
-            if (who == ActivePlayer.Player) SaveSnapshot("turnstart");
+            // Record one settled snapshot per own turn so real games become offline fixtures.
+            if (who == ActivePlayer.Player) _pendingRecord = true;
         }
 
         private void SaveSnapshot(string reason)
         {
+            var snap = _latest ?? SnapshotAdapter.Build(Core.Game, _hdtVersion, _gameId);
+            if (snap == null) { Log("SaveSnapshot(" + reason + "): no game state"); return; }
+            SaveSnapshot(snap, reason, null);
+        }
+
+        private void SaveSnapshot(GameSnapshot snap, string reason, string engineStatus)
+        {
             try
             {
-                var snap = _latest ?? SnapshotAdapter.Build(Core.Game, _hdtVersion);
-                if (snap == null) { Log("SaveSnapshot(" + reason + "): no game state"); return; }
-                var name = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-t" + snap.Turn + "-" + reason + ".json";
-                var wrapper = new { name = reason, snapshot = snap };
+                var name = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-g" + snap.GameId + "-t" + snap.Turn + "-" + reason + ".json";
+                // "expected" stays null until a human reviews the recording and fills it in.
+                var wrapper = new { name = reason, engineStatus, expected = (string)null, snapshot = snap };
                 File.WriteAllText(Path.Combine(SnapDir, name), JsonConvert.SerializeObject(wrapper, Formatting.Indented));
                 Log("Saved " + name);
             }

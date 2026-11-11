@@ -17,7 +17,7 @@ namespace Copilot.HdtPlugin
     /// </summary>
     internal static class SnapshotAdapter
     {
-        public static GameSnapshot Build(GameV2 game, string hdtVersion)
+        public static GameSnapshot Build(GameV2 game, string hdtVersion, string gameId)
         {
             var pe = game.PlayerEntity;
             var oe = game.OpponentEntity;
@@ -25,7 +25,7 @@ namespace Copilot.HdtPlugin
 
             var snap = new GameSnapshot
             {
-                GameId = game.GameTime?.ToString(),
+                GameId = gameId,
                 Turn = game.GetTurnNumber(),
                 MyTurn = Flag(pe, GameTag.CURRENT_PLAYER),
                 Format = game.CurrentFormatType.ToString(),

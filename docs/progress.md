@@ -18,6 +18,9 @@ Only entries with a command or observation behind them.
 - 2026-11-11 `DeckDump` decoded the Zoo Warlock deck code (16 distinct cards, Standard, Gul'dan) -> `docs/deck-cards.md`.
 - 2026-11-11 `tools\deploy.ps1` copied `HearthstoneCopilot.dll` + `Copilot.Engine.dll` to `%APPDATA%\HearthstoneDeckTracker\Plugins\HearthstoneCopilot`. **Not yet loaded by HDT** (HDT was running during deploy; needs restart).
 
+- 2026-11-11 First live game (Standard, HDT 1.59.11): plugin loaded, panel shown, 8 snapshots written, no errors in `plugin.log`. Verified against raw tags: hero health = HEALTH-DAMAGE, board/secret counts, Support classification. **Bug found:** `OnTurnStart` fires before HDT updates turn tags, so those snapshots had MyTurn=false, mana 0, no attacks. Fix: record once per own turn when state is settled (MyTurn and mana > 0), plus an extra snapshot whenever the solver reports Proven/Likely. Also `GameId` now a short id per game.
+- 2026-11-11 After fix: build 0 errors, 27/27 tests; **fix not yet deployed/verified live** (HDT was running).
+
 ## Next live check (user)
 1. Restart HDT, enable the plugin (Options > Tracker > Plugins), play a game.
 2. Expect the panel on your turns and files in `%APPDATA%\HearthstoneCopilot\snapshots`; read `plugin.log` for errors.
